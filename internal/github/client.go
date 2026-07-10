@@ -50,8 +50,8 @@ func NewClient() *Client {
 }
 
 // SearchRepos runs a GitHub code search query (e.g. "stars:>1") sorted by
-// sort/order, returning up to perPage results.
-func (c *Client) SearchRepos(ctx context.Context, query, sort, order string, perPage int) ([]Repo, error) {
+// sort/order, returning up to perPage results from the given page (1-indexed).
+func (c *Client) SearchRepos(ctx context.Context, query, sort, order string, perPage, page int) ([]Repo, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {
 		return nil, err
@@ -61,6 +61,7 @@ func (c *Client) SearchRepos(ctx context.Context, query, sort, order string, per
 	q.Set("sort", sort)
 	q.Set("order", order)
 	q.Set("per_page", fmt.Sprintf("%d", perPage))
+	q.Set("page", fmt.Sprintf("%d", page))
 	req.URL.RawQuery = q.Encode()
 
 	req.Header.Set("Accept", "application/vnd.github+json")

@@ -26,6 +26,15 @@ const (
 // GitHub's unauthenticated search rate limit of 10 requests/min.
 const pollInterval = 45 * time.Second
 
+// resultsPerPage is the page size requested on every poll.
+const resultsPerPage = 10
+
+// pageCount is how many consecutive pages are cycled through before
+// wrapping back to page 1. At resultsPerPage=10 this covers 30 results,
+// which mergeSorted then caps down to the 25 that make it into a panel
+// (i.e. the first 10, next 10, then last 5 of the top 25).
+const pageCount = 3
+
 // Result is emitted whenever a poll for a category completes, successfully
 // or not.
 type Result struct {
@@ -132,21 +141,23 @@ func (s *Scanner) pollLoop(ctx context.Context, q query, done chan<- struct{}) {
 	timer := time.NewTimer(q.start)
 	defer timer.Stop()
 
+	page := 1
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
 			if !s.paused.Load() {
-				s.poll(ctx, q)
+				s.poll(ctx, q, page)
+				page = page%pageCount + 1
 			}
 			timer.Reset(pollInterval)
 		}
 	}
 }
 
-func (s *Scanner) poll(ctx context.Context, q query) {
-	repos, err := s.client.SearchRepos(ctx, q.build(), q.sort, q.order, 10)
+func (s *Scanner) poll(ctx context.Context, q query, page int) {
+	repos, err := s.client.SearchRepos(ctx, q.build(), q.sort, q.order, resultsPerPage, page)
 	if ctx.Err() != nil {
 		return
 	}
